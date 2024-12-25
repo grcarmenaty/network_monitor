@@ -127,7 +127,7 @@ check_connectivity &
 connectivity_pid=$!
 
 # Prepare iperf3 command
-iperf_cmd="iperf3 -c $target_ip -u -R -p $port -B $local_ip -t 0 -f m -i 1"
+iperf_cmd="iperf3 -c $target_ip -u -R -p $port -B $local_ip -t 0 -f m -i 1 --udp-counters-64bit"
 if [ -n "$bandwidth" ]; then
   iperf_cmd="$iperf_cmd -b $bandwidth"
 fi
