@@ -21,21 +21,37 @@ mysql -e "DROP DATABASE IF EXISTS $DB_NAME;"
 mysql -e "DROP USER IF EXISTS '$DB_USER'@'localhost';"
 mysql -e "FLUSH PRIVILEGES;"
 
+# Function to remove Grafana data source
+remove_grafana_datasource() {
+    local name=$1
+    local datasource_id=$(curl -s -H "Content-Type: application/json" -X GET http://admin:admin@localhost:3000/api/datasources/name/$name | jq -r '.id')
+    
+    if [ "$datasource_id" != "null" ]; then
+        curl -X DELETE http://admin:admin@localhost:3000/api/datasources/$datasource_id
+        echo "Removed Grafana data source: $name"
+    else
+        echo "Data source $name not found in Grafana"
+    fi
+}
+
 # Remove Grafana data source for local database
 echo "Removing Grafana data source for local database..."
-grafana-cli admin data-sources delete LocalNetworkMonitor
+remove_grafana_datasource "LocalNetworkMonitor"
 
 # If remote database was added, remove its data source
 if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
     echo "Removing Grafana data source for remote database..."
-    grafana-cli admin data-sources delete RemoteNetworkMonitor
+    remove_grafana_datasource "RemoteNetworkMonitor"
 fi
 
 # Remove Grafana dashboard
 echo "Removing Grafana dashboard..."
-DASHBOARD_UID=$(curl -s -H "Content-Type: application/json" -X GET http://localhost:3000/api/dashboards/db/network-monitoring-dashboard --user admin:admin | jq -r '.dashboard.uid')
-if [ ! -z "$DASHBOARD_UID" ]; then
-    curl -X DELETE http://localhost:3000/api/dashboards/uid/$DASHBOARD_UID --user admin:admin
+DASHBOARD_UID=$(curl -s -H "Content-Type: application/json" -X GET http://admin:admin@localhost:3000/api/dashboards/db/network-monitoring-dashboard | jq -r '.dashboard.uid')
+if [ ! -z "$DASHBOARD_UID" ] && [ "$DASHBOARD_UID" != "null" ]; then
+    curl -X DELETE http://admin:admin@localhost:3000/api/dashboards/uid/$DASHBOARD_UID
+    echo "Removed Grafana dashboard"
+else
+    echo "Dashboard not found in Grafana"
 fi
 
 # Remove symbolic link
