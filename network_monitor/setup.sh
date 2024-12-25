@@ -12,26 +12,53 @@ if [ ! -f "main.sh" ]; then
     exit 1
 fi
 
-# Function to read value from setup.conf
-read_config() {
-    if [ -f "setup.conf" ]; then
-        grep "^$1=" setup.conf | cut -d '=' -f 2-
-    fi
-}
+# Create the /opt/network_monitor directory
+mkdir -p /opt/network_monitor
 
-# Check if setup.conf exists and read values
-if [ -f "setup.conf" ]; then
-    echo "Found setup.conf file. Reading configuration..."
-    DB_NAME=$(read_config "DB_NAME")
-    DB_USER=$(read_config "DB_USER")
-    DB_PASS=$(read_config "DB_PASS")
-    ADD_REMOTE=$(read_config "ADD_REMOTE")
-    REMOTE_DB_IP=$(read_config "REMOTE_DB_IP")
-    REMOTE_DB_PORT=$(read_config "REMOTE_DB_PORT")
-    REMOTE_DB_NAME=$(read_config "REMOTE_DB_NAME")
-    REMOTE_DB_USER=$(read_config "REMOTE_DB_USER")
-    REMOTE_DB_PASS=$(read_config "REMOTE_DB_PASS")
+# Check if setup.conf exists in the current directory
+if [ ! -f "setup.conf" ]; then
+    echo "Creating setup.conf file..."
+    
+    # Prompt for local database configuration
+    read -p "Enter database name: " DB_NAME
+    read -p "Enter database user: " DB_USER
+    read -s -p "Enter database password: " DB_PASS
+    echo
+
+    # Write local database configuration to setup.conf
+    echo "DB_NAME=$DB_NAME" >> /opt/network_monitor/setup.conf
+    echo "DB_USER=$DB_USER" >> /opt/network_monitor/setup.conf
+    echo "DB_PASS=$DB_PASS" >> /opt/network_monitor/setup.conf
+
+    # Ask if user wants to add a remote database
+    read -p "Do you want to add a remote database? (y/n): " ADD_REMOTE
+    echo "ADD_REMOTE=$ADD_REMOTE" >> /opt/network_monitor/setup.conf
+
+    if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
+        read -p "Enter remote database IP: " REMOTE_DB_IP
+        read -p "Enter remote database port (default 3306): " REMOTE_DB_PORT
+        REMOTE_DB_PORT=${REMOTE_DB_PORT:-3306}
+        read -p "Enter remote database name: " REMOTE_DB_NAME
+        read -p "Enter remote database user: " REMOTE_DB_USER
+        read -s -p "Enter remote database password: " REMOTE_DB_PASS
+        echo
+
+        # Write remote database configuration to setup.conf
+        echo "REMOTE_DB_IP=$REMOTE_DB_IP" >> /opt/network_monitor/setup.conf
+        echo "REMOTE_DB_PORT=$REMOTE_DB_PORT" >> /opt/network_monitor/setup.conf
+        echo "REMOTE_DB_NAME=$REMOTE_DB_NAME" >> /opt/network_monitor/setup.conf
+        echo "REMOTE_DB_USER=$REMOTE_DB_USER" >> /opt/network_monitor/setup.conf
+        echo "REMOTE_DB_PASS=$REMOTE_DB_PASS" >> /opt/network_monitor/setup.conf
+    fi
+
+    echo "setup.conf file created with user inputs in /opt/network_monitor/."
+else
+    echo "setup.conf file already exists in the current directory. Copying to /opt/network_monitor/."
+    cp setup.conf /opt/network_monitor/setup.conf
 fi
+
+# Source the setup.conf file
+source /opt/network_monitor/setup.conf
 
 # Check if MySQL is installed
 if ! command -v mysql &> /dev/null
@@ -85,42 +112,7 @@ else
     echo "Grafana is already installed."
 fi
 
-# Prompt for local database configuration if not in setup.conf
-if [ -z "$DB_NAME" ]; then
-    while true; do
-        read -p "Enter local database name: " DB_NAME
-        if [ -n "$DB_NAME" ]; then
-            break
-        else
-            echo "Database name cannot be empty. Please try again."
-        fi
-    done
-fi
-
-if [ -z "$DB_USER" ]; then
-    while true; do
-        read -p "Enter local database user: " DB_USER
-        if [ -n "$DB_USER" ]; then
-            break
-        else
-            echo "Database user cannot be empty. Please try again."
-        fi
-    done
-fi
-
-if [ -z "$DB_PASS" ]; then
-    while true; do
-        read -s -p "Enter local database password: " DB_PASS
-        echo
-        if [ -n "$DB_PASS" ]; then
-            break
-        else
-            echo "Database password cannot be empty. Please try again."
-        fi
-    done
-fi
-
-# Create the local database and user
+# Create the database and user
 mysql -e "
 CREATE DATABASE IF NOT EXISTS $DB_NAME;
 CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';
@@ -151,9 +143,6 @@ CREATE TABLE IF NOT EXISTS interruptions (
 );
 "
 
-# Create the /opt/network_monitor directory
-mkdir -p /opt/network_monitor
-
 # Copy main.sh to /opt/network_monitor/
 cp main.sh /opt/network_monitor/main.sh
 
@@ -172,72 +161,37 @@ chmod +x /usr/local/bin/network_monitor
 # Add the local database as a data source in Grafana
 grafana-cli admin data-source add --type mysql --name "LocalNetworkMonitor" --url "localhost:3306" --database "$DB_NAME" --user "$DB_USER" --password "$DB_PASS"
 
-# Ask if user wants to add a remote database (if not specified in setup.conf)
-if [ -z "$ADD_REMOTE" ]; then
-    read -p "Do you want to add a remote database? (y/n): " ADD_REMOTE
-fi
-
 if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
-    # Prompt for remote database configuration if not in setup.conf
-    if [ -z "$REMOTE_DB_IP" ]; then
-        while true; do
-            read -p "Enter remote database IP: " REMOTE_DB_IP
-            if [ -n "$REMOTE_DB_IP" ]; then
-                break
-            else
-                echo "Remote database IP cannot be empty. Please try again."
-            fi
-        done
-    fi
-
-    if [ -z "$REMOTE_DB_PORT" ]; then
-        read -p "Enter remote database port (default 3306): " REMOTE_DB_PORT
-        REMOTE_DB_PORT=${REMOTE_DB_PORT:-3306}
-    fi
-    
-    if [ -z "$REMOTE_DB_NAME" ]; then
-        while true; do
-            read -p "Enter remote database name: " REMOTE_DB_NAME
-            if [ -n "$REMOTE_DB_NAME" ]; then
-                break
-            else
-                echo "Remote database name cannot be empty. Please try again."
-            fi
-        done
-    fi
-
-    if [ -z "$REMOTE_DB_USER" ]; then
-        while true; do
-            read -p "Enter remote database user: " REMOTE_DB_USER
-            if [ -n "$REMOTE_DB_USER" ]; then
-                break
-            else
-                echo "Remote database user cannot be empty. Please try again."
-            fi
-        done
-    fi
-
-    if [ -z "$REMOTE_DB_PASS" ]; then
-        while true; do
-            read -s -p "Enter remote database password: " REMOTE_DB_PASS
-            echo
-            if [ -n "$REMOTE_DB_PASS" ]; then
-                break
-            else
-                echo "Remote database password cannot be empty. Please try again."
-            fi
-        done
-    fi
-
     # Add the remote database as a data source in Grafana
     grafana-cli admin data-source add --type mysql --name "RemoteNetworkMonitor" --url "$REMOTE_DB_IP:$REMOTE_DB_PORT" --database "$REMOTE_DB_NAME" --user "$REMOTE_DB_USER" --password "$REMOTE_DB_PASS"
     
     echo "Remote database added as a data source in Grafana."
 fi
 
+# Path to the Grafana dashboards folder
+grafana_dashboards_folder="grafana_dashboards"
+
+# Choose the appropriate dashboard file
+if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
+    dashboard_file="network_monitor_remote.json"
+else
+    dashboard_file="network_monitor_dashboard.json"
+fi
+
+dashboard_path="$grafana_dashboards_folder/$dashboard_file"
+
+# Check if the dashboard file exists
+if [ -f "$dashboard_path" ]; then
+    # Add the dashboard to Grafana using Grafana's HTTP API
+    curl -X POST -H "Content-Type: application/json" -d "@$dashboard_path" http://localhost:3000/api/dashboards/db --user admin:admin
+    echo "Dashboard $dashboard_file added successfully to Grafana."
+else
+    echo "Error: $dashboard_file not found in the $grafana_dashboards_folder folder."
+fi
+
 echo "Setup complete. The main.sh script has been copied to /opt/network_monitor/."
 echo "A symbolic link 'network_monitor' has been created in /usr/local/bin/."
-echo "Local database $DB_NAME has been created with user $DB_USER and the necessary tables."
+echo "Database $DB_NAME has been created with user $DB_USER and the necessary tables."
 echo "Grafana has been installed and started. You can access it at http://localhost:3000"
 echo "Default Grafana login credentials are admin/admin. You will be prompted to change the password on first login."
 echo "A Grafana data source for the local database has been added."
