@@ -1,0 +1,95 @@
+{
+    "title": "Network Monitoring Dashboard",
+    "panels": [
+        {
+            "type": "timeseries",
+            "title": "Data Rate",
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": "LocalNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Uplink Data Rate"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "Mbits"
+                }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Jitter",
+            "targets": [
+                {
+                    "refId": "B",
+                    "datasource": "LocalNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Uplink Jitter"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms"
+                }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Lost Packets",
+            "targets": [
+                {
+                    "refId": "C",
+                    "datasource": "LocalNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Uplink Lost Packets"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent"
+                }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Latency",
+            "targets": [
+                {
+                    "refId": "D",
+                    "datasource": "LocalNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Uplink Round Trip Latency"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms"
+                }
+            }
+        },
+        {
+            "type": "scatter",
+            "title": "Interruption Time",
+            "targets": [
+                {
+                    "refId": "E",
+                    "datasource": "LocalNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Uplink Interruption Time"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s"
+                }
+            }
+        }
+    ]
+}
