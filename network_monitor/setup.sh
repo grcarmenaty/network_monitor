@@ -146,11 +146,6 @@ CREATE TABLE IF NOT EXISTS interruptions (
 # Copy main.sh to /opt/network_monitor/
 cp main.sh /opt/network_monitor/main.sh
 
-# Update main.sh with the provided database credentials
-sed -i "s/db_user=\"network_user\"/db_user=\"$DB_USER\"/" /opt/network_monitor/main.sh
-sed -i "s/db_password=\"n3tw0rk_p@ssw0rd\"/db_password=\"$DB_PASS\"/" /opt/network_monitor/main.sh
-sed -i "s/db_name=\"NETWORK_MONITOR_DB\"/db_name=\"$DB_NAME\"/" /opt/network_monitor/main.sh
-
 # Make the main.sh script executable
 chmod +x /opt/network_monitor/main.sh
 
@@ -158,14 +153,39 @@ chmod +x /opt/network_monitor/main.sh
 ln -sf /opt/network_monitor/main.sh /usr/local/bin/network_monitor
 chmod +x /usr/local/bin/network_monitor
 
+# Function to add Grafana data source
+add_grafana_datasource() {
+    local name=$1
+    local type=$2
+    local url=$3
+    local database=$4
+    local user=$5
+    local password=$6
+
+    curl -X POST -H "Content-Type: application/json" -d '{
+        "name":"'"$name"'",
+        "type":"'"$type"'",
+        "url":"'"$url"'",
+        "database":"'"$database"'",
+        "user":"'"$user"'",
+        "password":"'"$password"'",
+        "access":"proxy",
+        "basicAuth":false
+    }' http://admin:admin@localhost:3000/api/datasources
+}
+
+# Wait for Grafana to start
+echo "Waiting for Grafana to start..."
+sleep 10
+
 # Add the local database as a data source in Grafana
-grafana-cli admin data-source add --type mysql --name "LocalNetworkMonitor" --url "localhost:3306" --database "$DB_NAME" --user "$DB_USER" --password "$DB_PASS"
+echo "Adding local database as a Grafana data source..."
+add_grafana_datasource "LocalNetworkMonitor" "mysql" "localhost:3306" "$DB_NAME" "$DB_USER" "$DB_PASS"
 
 if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
     # Add the remote database as a data source in Grafana
-    grafana-cli admin data-source add --type mysql --name "RemoteNetworkMonitor" --url "$REMOTE_DB_IP:$REMOTE_DB_PORT" --database "$REMOTE_DB_NAME" --user "$REMOTE_DB_USER" --password "$REMOTE_DB_PASS"
-    
-    echo "Remote database added as a data source in Grafana."
+    echo "Adding remote database as a Grafana data source..."
+    add_grafana_datasource "RemoteNetworkMonitor" "mysql" "$REMOTE_DB_IP:$REMOTE_DB_PORT" "$REMOTE_DB_NAME" "$REMOTE_DB_USER" "$REMOTE_DB_PASS"
 fi
 
 # Path to the Grafana dashboards folder
@@ -183,7 +203,7 @@ dashboard_path="$grafana_dashboards_folder/$dashboard_file"
 # Check if the dashboard file exists
 if [ -f "$dashboard_path" ]; then
     # Add the dashboard to Grafana using Grafana's HTTP API
-    curl -X POST -H "Content-Type: application/json" -d "@$dashboard_path" http://localhost:3000/api/dashboards/db --user admin:admin
+    curl -X POST -H "Content-Type: application/json" -d "@$dashboard_path" http://admin:admin@localhost:3000/api/dashboards/db
     echo "Dashboard $dashboard_file added successfully to Grafana."
 else
     echo "Error: $dashboard_file not found in the $grafana_dashboards_folder folder."
