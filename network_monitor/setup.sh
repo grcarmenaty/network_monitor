@@ -60,6 +60,17 @@ fi
 # Source the setup.conf file
 source /opt/network_monitor/setup.conf
 
+# Check if jq is installed
+if ! command -v jq &> /dev/null
+then
+    echo "jq is not installed. Installing jq..."
+    apt-get update
+    apt-get install -y jq
+    echo "jq installation complete."
+else
+    echo "jq is already installed."
+fi
+
 # Check if MySQL is installed
 if ! command -v mysql &> /dev/null
 then
