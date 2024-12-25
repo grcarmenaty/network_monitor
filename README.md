@@ -17,10 +17,10 @@ cd network_monitor
 cd network_monitor
 ```
 
-3. Run the setup script:
+3. Run the setup script. Make sure you have edited setup.conf if you're using setup.conf (see Configuration below):
 
 ```
-sudo ./setup.sh
+sudo bash ./setup.sh
 ```
 
 This script will:
