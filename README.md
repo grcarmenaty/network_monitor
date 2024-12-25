@@ -70,7 +70,7 @@ REMOTE_DB_USER=remote_database_user
 REMOTE_DB_PASS=remote_database_password
 ```
 
-Adjust the values according to your needs. If `setup.conf` is present, the setup script will use these values instead of prompting for input.
+Adjust the values according to your needs. If `setup.conf` is present, the setup script will use these values instead of prompting for input. Please be aware that an example `setup.conf` is already included in the repository, delete it if you want to proceed with a manual install.
 
 ## Troubleshooting
 
