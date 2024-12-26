@@ -95,6 +95,32 @@ else
     exit 1
 fi
 
+mysql_config_path="/etc/mysql/mysql.conf.d/mysqld.cnf"
+
+if [ -f "$mysql_config_path" ]; then
+    # Check if bind-address is already set to 0.0.0.0
+    if grep -q "bind-address.*=.*0.0.0.0" "$mysql_config_path"; then
+        echo "MySQL already configured for remote access."
+    else
+        # Replace bind-address line or add it if not present
+        sed -i '/bind-address/c\bind-address = 0.0.0.0' "$mysql_config_path"
+        if ! grep -q "bind-address" "$mysql_config_path"; then
+            echo "bind-address = 0.0.0.0" >> "$mysql_config_path"
+        fi
+        echo "MySQL configuration updated for remote access."
+    fi
+
+    # Restart MySQL service to apply changes
+    systemctl restart mysql
+    if [ $? -eq 0 ]; then
+        echo "MySQL service restarted successfully."
+    else
+        echo "Failed to restart MySQL service. Please check the service status."
+    fi
+else
+    echo "MySQL configuration file not found at $mysql_config_path"
+fi
+
 # Check if iperf3 is installed
 if ! command -v iperf3 &> /dev/null
 then
