@@ -82,6 +82,19 @@ else
     echo "MySQL is already installed."
 fi
 
+# Start and enable MySQL service
+echo "Starting and enabling MySQL service..."
+systemctl start mysql
+systemctl enable mysql
+
+# Verify MySQL service status
+if systemctl is-active --quiet mysql; then
+    echo "MySQL service is running."
+else
+    echo "Error: Failed to start MySQL service. Please check the logs for more information."
+    exit 1
+fi
+
 # Check if iperf3 is installed
 if ! command -v iperf3 &> /dev/null
 then
