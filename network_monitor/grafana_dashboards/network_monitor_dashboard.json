@@ -1,95 +1,128 @@
 {
+  "dashboard": {
+    "id": null,
+    "uid": null,
     "title": "Network Monitoring Dashboard",
+    "tags": ["network", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "5s",
     "panels": [
-        {
-            "type": "timeseries",
-            "title": "Data Rate",
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": "LocalNetworkMonitor",
-                    "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results ORDER BY time ASC;",
-                    "format": "time_series",
-                    "alias": "Uplink Data Rate"
-                }
-            ],
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "Mbits"
-                }
-            }
+      {
+        "type": "timeseries",
+        "title": "Data Rate",
+        "datasource": {
+          "type": "mysql",
+          "uid": "${DS_LOCAL}"
         },
-        {
-            "type": "timeseries",
-            "title": "Jitter",
-            "targets": [
-                {
-                    "refId": "B",
-                    "datasource": "LocalNetworkMonitor",
-                    "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results ORDER BY time ASC;",
-                    "format": "time_series",
-                    "alias": "Uplink Jitter"
-                }
-            ],
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "ms"
-                }
-            }
-        },
-        {
-            "type": "timeseries",
-            "title": "Lost Packets",
-            "targets": [
-                {
-                    "refId": "C",
-                    "datasource": "LocalNetworkMonitor",
-                    "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results ORDER BY time ASC;",
-                    "format": "time_series",
-                    "alias": "Uplink Lost Packets"
-                }
-            ],
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "percent"
-                }
-            }
-        },
-        {
-            "type": "timeseries",
-            "title": "Latency",
-            "targets": [
-                {
-                    "refId": "D",
-                    "datasource": "LocalNetworkMonitor",
-                    "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results ORDER BY time ASC;",
-                    "format": "time_series",
-                    "alias": "Uplink Round Trip Latency"
-                }
-            ],
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "ms"
-                }
-            }
-        },
-        {
-            "type": "scatter",
-            "title": "Interruption Time",
-            "targets": [
-                {
-                    "refId": "E",
-                    "datasource": "LocalNetworkMonitor",
-                    "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions ORDER BY time ASC;",
-                    "format": "time_series",
-                    "alias": "Uplink Interruption Time"
-                }
-            ],
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "s"
-                }
-            }
+        "targets": [
+          {
+            "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results ORDER BY time ASC;",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "Mbits"
+          }
         }
-    ]
+      },
+      {
+        "type": "timeseries",
+        "title": "Jitter",
+        "datasource": {
+          "type": "mysql",
+          "uid": "${DS_LOCAL}"
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results ORDER BY time ASC;",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Lost Packets",
+        "datasource": {
+          "type": "mysql",
+          "uid": "${DS_LOCAL}"
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results ORDER BY time ASC;",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Latency",
+        "datasource": {
+          "type": "mysql",
+          "uid": "${DS_LOCAL}"
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results ORDER BY time ASC;",
+            "refId": "D"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        }
+      },
+      {
+        "type": "scatter",
+        "title": "Interruption Time",
+        "datasource": {
+          "type": "mysql",
+          "uid": "${DS_LOCAL}"
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions ORDER BY time ASC;",
+            "refId": "E"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "LocalNetworkMonitor",
+          "type": "datasource",
+          "pluginId": "mysql",
+          "pluginName": "MySQL"
+        }
+      ]
+    }
+  },
+  "overwrite": true,
+  "inputs": [
+    {
+      "name": "LocalNetworkMonitor",
+      "type": "datasource",
+      "pluginId": "mysql",
+      "value": "LocalNetworkMonitor"
+    }
+  ]
 }
