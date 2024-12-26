@@ -108,7 +108,7 @@
     "templating": {
       "list": [
         {
-          "name": "LocalNetworkMonitor",
+          "name": "DS_LOCAL",
           "type": "datasource",
           "pluginId": "mysql",
           "pluginName": "MySQL"
@@ -119,7 +119,7 @@
   "overwrite": true,
   "inputs": [
     {
-      "name": "LocalNetworkMonitor",
+      "name": "DS_LOCAL",
       "type": "datasource",
       "pluginId": "mysql",
       "value": "LocalNetworkMonitor"
