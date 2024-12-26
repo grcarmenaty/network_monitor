@@ -71,15 +71,13 @@ else
     echo "jq is already installed."
 fi
 
-# Check if MySQL is installed
+# Ensure MySQL is installed and running
 if ! command -v mysql &> /dev/null
 then
     echo "MySQL is not installed. Installing MySQL..."
     apt-get update
     apt-get install -y mysql-server
     echo "MySQL installation complete."
-else
-    echo "MySQL is already installed."
 fi
 
 # Start and enable MySQL service
@@ -87,39 +85,29 @@ echo "Starting and enabling MySQL service..."
 systemctl start mysql
 systemctl enable mysql
 
-# Verify MySQL service status
-if systemctl is-active --quiet mysql; then
-    echo "MySQL service is running."
-else
-    echo "Error: Failed to start MySQL service. Please check the logs for more information."
-    exit 1
-fi
-
+# Configure MySQL for remote access
 mysql_config_path="/etc/mysql/mysql.conf.d/mysqld.cnf"
-
 if [ -f "$mysql_config_path" ]; then
-    # Check if bind-address is already set to 0.0.0.0
-    if grep -q "bind-address.*=.*0.0.0.0" "$mysql_config_path"; then
-        echo "MySQL already configured for remote access."
-    else
-        # Replace bind-address line or add it if not present
-        sed -i '/bind-address/c\bind-address = 0.0.0.0' "$mysql_config_path"
-        if ! grep -q "bind-address" "$mysql_config_path"; then
-            echo "bind-address = 0.0.0.0" >> "$mysql_config_path"
-        fi
-        echo "MySQL configuration updated for remote access."
+    # Replace bind-address line or add it if not present
+    sed -i '/bind-address/c\bind-address = 0.0.0.0' "$mysql_config_path"
+    if ! grep -q "bind-address" "$mysql_config_path"; then
+        echo "bind-address = 0.0.0.0" >> "$mysql_config_path"
     fi
-
-    # Restart MySQL service to apply changes
-    systemctl restart mysql
-    if [ $? -eq 0 ]; then
-        echo "MySQL service restarted successfully."
-    else
-        echo "Failed to restart MySQL service. Please check the service status."
-    fi
+    echo "MySQL configuration updated for remote access."
 else
     echo "MySQL configuration file not found at $mysql_config_path"
 fi
+
+# Restart MySQL service to apply changes
+systemctl restart mysql
+
+# Create database and user with remote access privileges
+mysql -e "CREATE DATABASE IF NOT EXISTS $DB_NAME;"
+mysql -e "CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';"
+mysql -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';"
+mysql -e "FLUSH PRIVILEGES;"
+
+echo "MySQL user '$DB_USER' created with remote access privileges."
 
 # Check if iperf3 is installed
 if ! command -v iperf3 &> /dev/null
@@ -161,14 +149,6 @@ then
 else
     echo "Grafana is already installed."
 fi
-
-# Create the database and user
-mysql -e "
-CREATE DATABASE IF NOT EXISTS $DB_NAME;
-CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';
-GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';
-FLUSH PRIVILEGES;
-"
 
 # Create the necessary tables
 mysql -u $DB_USER -p$DB_PASS $DB_NAME -e "
