@@ -1,4 +1,176 @@
 {
+  "dashboard": {
+    "id": null,
+    "uid": null,
+    "title": "Network Monitoring Dashboard (Bidirectional)",
+    "tags": ["network", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "5s",
+    "panels": [
+        {
+            "type": "timeseries",
+            "title": "Data Rate",
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": "LocalNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Uplink Data Rate"
+                },
+                {
+                    "refId": "B",
+                    "datasource": "RemoteNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Downlink Data Rate"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "Mbits"
+                }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Jitter",
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": "LocalNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Uplink Jitter"
+                },
+                {
+                    "refId": "B",
+                    "datasource": "RemoteNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Downlink Jitter"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms"
+                }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Lost Packets",
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": "LocalNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Uplink Lost Packets"
+                },
+                {
+                    "refId": "B",
+                    "datasource": "RemoteNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Downlink Lost Packets"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent"
+                }
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Latency",
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": "LocalNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Uplink Round Trip Latency"
+                },
+                {
+                    "refId": "B",
+                    "datasource": "RemoteNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Downlink Round Trip Latency"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms"
+                }
+            }
+        },
+        {
+            "type": "scatter",
+            "title": "Interruption Time",
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": "LocalNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Uplink Interruption Time"
+                },
+                {
+                    "refId": "B",
+                    "datasource": "RemoteNetworkMonitor",
+                    "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions ORDER BY time ASC;",
+                    "format": "time_series",
+                    "alias": "Downlink Interruption Time"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s"
+                }
+            }
+        }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "DS_LOCAL",
+          "type": "datasource",
+          "pluginId": "mysql",
+          "pluginName": "MySQL"
+        },
+        {
+          "name": "DS_REMOTE",
+          "type": "datasource",
+          "pluginId": "mysql",
+          "pluginName": "MySQL"
+        }
+      ]
+    }
+  },
+  "overwrite": true,
+  "inputs": [
+    {
+      "name": "DS_LOCAL",
+      "type": "datasource",
+      "pluginId": "mysql",
+      "value": "LocalNetworkMonitor"
+    },
+    {
+      "name": "DS_REMOTE",
+      "type": "datasource",
+      "pluginId": "mysql",
+      "value": "RemoteNetworkMonitor"
+    }
+  ]
+}
+
+
+{
     "title": "Network Monitoring Dashboard (Bidirectional)",
     "panels": [
         {
