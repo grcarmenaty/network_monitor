@@ -192,7 +192,7 @@ add_grafana_datasource() {
     local user=$5
     local password=$6
 
-    curl -X POST -H "Content-Type: application/json" -d '{
+    curl -X POST -H "Content-Type: application/json" -H "Accept: application/json" -d '{
         "name":"'"$name"'",
         "type":"'"$type"'",
         "url":"'"$url"'",
@@ -239,8 +239,20 @@ dashboard_path="$grafana_dashboards_folder/$dashboard_file"
 
 # Check if the dashboard file exists
 if [ -f "$dashboard_path" ]; then
+    # Update the dashboard JSON with correct data source UIDs
+    local_ds_uid=$(curl -s -H "Accept: application/json" -H "Content-Type: application/json" http://admin:admin@localhost:3000/api/datasources/name/LocalNetworkMonitor | jq -r '.uid')
+    
+    # Update LocalNetworkMonitor UID in the dashboard JSON
+    sed -i 's/"uid": "LocalNetworkMonitor"/"uid": "'"$local_ds_uid"'"/' "$dashboard_path"
+    
+    if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
+        remote_ds_uid=$(curl -s -H "Accept: application/json" -H "Content-Type: application/json" http://admin:admin@localhost:3000/api/datasources/name/RemoteNetworkMonitor | jq -r '.uid')
+        # Update RemoteNetworkMonitor UID in the dashboard JSON
+        sed -i 's/"uid": "RemoteNetworkMonitor"/"uid": "'"$remote_ds_uid"'"/' "$dashboard_path"
+    fi
+
     # Add the dashboard to Grafana using Grafana's HTTP API
-    curl -X POST -H "Content-Type: application/json" -d "@$dashboard_path" http://admin:admin@localhost:3000/api/dashboards/db
+    curl -X POST -H "Content-Type: application/json" -H "Accept: application/json" -d "@$dashboard_path" http://admin:admin@localhost:3000/api/dashboards/import
     echo "Dashboard $dashboard_file added successfully to Grafana."
 else
     echo "Error: $dashboard_file not found in the $grafana_dashboards_folder folder."
