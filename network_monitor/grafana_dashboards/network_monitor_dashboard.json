@@ -14,7 +14,7 @@
         "title": "Data Rate",
         "datasource": {
           "type": "mysql",
-          "uid": "${DS_LOCAL}"
+          "uid": "LocalNetworkMonitor"
         },
         "targets": [
           {
@@ -33,7 +33,7 @@
         "title": "Jitter",
         "datasource": {
           "type": "mysql",
-          "uid": "${DS_LOCAL}"
+          "uid": "LocalNetworkMonitor"
         },
         "targets": [
           {
@@ -52,7 +52,7 @@
         "title": "Lost Packets",
         "datasource": {
           "type": "mysql",
-          "uid": "${DS_LOCAL}"
+          "uid": "LocalNetworkMonitor"
         },
         "targets": [
           {
@@ -71,7 +71,7 @@
         "title": "Latency",
         "datasource": {
           "type": "mysql",
-          "uid": "${DS_LOCAL}"
+          "uid": "LocalNetworkMonitor"
         },
         "targets": [
           {
@@ -86,11 +86,11 @@
         }
       },
       {
-        "type": "scatter",
+        "type": "timeseries",
         "title": "Interruption Time",
         "datasource": {
           "type": "mysql",
-          "uid": "${DS_LOCAL}"
+          "uid": "LocalNetworkMonitor"
         },
         "targets": [
           {
@@ -100,29 +100,16 @@
         ],
         "fieldConfig": {
           "defaults": {
-            "unit": "s"
+            "unit": "s",
+            "custom": {
+              "lineWidth": 0,
+              "fillOpacity": 0,
+              "pointSize": 5
+            }
           }
         }
       }
-    ],
-    "templating": {
-      "list": [
-        {
-          "name": "DS_LOCAL",
-          "type": "datasource",
-          "pluginId": "mysql",
-          "pluginName": "MySQL"
-        }
-      ]
-    }
+    ]
   },
-  "overwrite": true,
-  "inputs": [
-    {
-      "name": "DS_LOCAL",
-      "type": "datasource",
-      "pluginId": "mysql",
-      "value": "LocalNetworkMonitor"
-    }
-  ]
+  "overwrite": true
 }
