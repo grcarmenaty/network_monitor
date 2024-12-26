@@ -198,15 +198,17 @@ add_grafana_datasource() {
         "url":"'"$url"'",
         "database":"'"$database"'",
         "user":"'"$user"'",
-        "password":"'"$password"'",
+        "jsonData": {
+            "maxOpenConns": 100,
+            "maxIdleConns": 100,
+            "connMaxLifetime": 14400
+        },
+        "secureJsonData": {
+            "password":"'"$password"'"
+        },
         "access":"proxy",
         "basicAuth":false
     }' http://admin:admin@localhost:3000/api/datasources
-
-    # Update the data source to ensure the password is set correctly
-    curl -X PUT -H "Content-Type: application/json" -d '{
-        "password":"'"$password"'"
-    }' http://admin:admin@localhost:3000/api/datasources/name/$name
 }
 
 # Wait for Grafana to start
@@ -222,7 +224,6 @@ if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
     echo "Adding remote database as a Grafana data source..."
     add_grafana_datasource "RemoteNetworkMonitor" "mysql" "$REMOTE_DB_IP:$REMOTE_DB_PORT" "$REMOTE_DB_NAME" "$REMOTE_DB_USER" "$REMOTE_DB_PASS"
 fi
-
 
 # Path to the Grafana dashboards folder
 grafana_dashboards_folder="grafana_dashboards"
