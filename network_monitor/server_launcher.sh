@@ -3,6 +3,14 @@
 # Set the script directory
 SCRIPT_DIR="/opt/network_monitor"
 
+# Function to check if script is run as superuser
+check_superuser() {
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "This operation requires superuser privileges. Please run as root or use sudo."
+        exit 1
+    fi
+}
+
 # Source the setup.conf file
 source "$SCRIPT_DIR/setup.conf"
 
@@ -26,10 +34,10 @@ show_help() {
     echo "  -t <target_ip>   Specify the target IP address"
     echo "  -p <port>        Specify the port for iperf3 (default: 5050)"
     echo "  -b <bandwidth>   Specify the bandwidth for iperf3"
-    echo "  -d               Create a default.conf file with current settings"
-    echo "  -u               Uninstall the network monitor"
-    echo "  -a               Used with -u, uninstall all associated programs"
-    echo "  -s               Simulate periodic disconnections"
+    echo "  -d               Create a default.conf file with current settings (requires superuser)"
+    echo "  -u               Uninstall the network monitor (requires superuser)"
+    echo "  -a               Used with -u, uninstall all associated programs (requires superuser)"
+    echo "  -s               Simulate periodic disconnections (requires superuser)"
     echo "  -h, --help       Display this help message"
     echo
     echo "Example:"
@@ -38,6 +46,7 @@ show_help() {
 
 # Function to create default.conf
 create_default_conf() {
+    check_superuser
     cat > "$SCRIPT_DIR/default.conf" << EOF
 INTERFACE=$interface
 TARGET_IP=$target_ip
@@ -49,6 +58,7 @@ EOF
 
 # Function to uninstall
 uninstall() {
+    check_superuser
     echo "Uninstalling network monitor..."
     
     # Stop any running processes
@@ -70,6 +80,7 @@ uninstall() {
 
 # Function to simulate disconnections
 simulate_disconnections() {
+    check_superuser
     while true; do
         sleep 60  # Wait for 1 minute
         duration=$((RANDOM % 6 + 5))  # Random number between 5 and 10
@@ -82,10 +93,13 @@ simulate_disconnections() {
     done
 }
 
-# Check if default.conf exists and source it if no flags are passed
-if [ $# -eq 0 ] && [ -f "$SCRIPT_DIR/default.conf" ]; then
+# Source default.conf if it exists
+if [ -f "$SCRIPT_DIR/default.conf" ]; then
     source "$SCRIPT_DIR/default.conf"
-    echo "Using settings from default.conf"
+    interface=${INTERFACE:-$interface}
+    target_ip=${TARGET_IP:-$target_ip}
+    port=${PORT:-$port}
+    bandwidth=${BANDWIDTH:-$bandwidth}
 fi
 
 # Parse command-line options
@@ -95,14 +109,20 @@ while [[ $# -gt 0 ]]; do
         -t) target_ip="$2"; shift 2 ;;
         -p) port="$2"; shift 2 ;;
         -b) bandwidth="$2"; shift 2 ;;
-        -d) create_default=true; shift ;;
-        -u) uninstall=true; shift ;;
+        -d) create_default=true; check_superuser; shift ;;
+        -u) uninstall=true; check_superuser; shift ;;
         -a) uninstall_all=true; shift ;;
-        -s) simulate_disconnections=true; shift ;;
+        -s) simulate_disconnections=true; check_superuser; shift ;;
         -h|--help) show_help; exit 0 ;;
         *) echo "Unknown option: $1" >&2; show_help; exit 1 ;;
     esac
 done
+
+# Check if -a is used without -u
+if [ "$uninstall_all" = true ] && [ "$uninstall" = false ]; then
+    echo "Error: -a flag can only be used with -u flag."
+    exit 1
+fi
 
 # Uninstall if -u flag is passed
 if [ "$uninstall" = true ]; then
@@ -112,12 +132,17 @@ fi
 # Create default.conf if -d flag is passed
 if [ "$create_default" = true ]; then
     create_default_conf
-    exit 0
 fi
 
 # Check if interface is provided
 if [ -z "$interface" ]; then
-  echo "Error: Interface not specified. Use -i flag to specify the interface."
+  echo "Error: Interface not specified. Use -i flag to specify the interface or set it in default.conf."
+  exit 1
+fi
+
+# Check if target_ip is provided
+if [ -z "$target_ip" ]; then
+  echo "Error: Target IP not specified. Use -t flag to specify the target IP or set it in default.conf."
   exit 1
 fi
 
