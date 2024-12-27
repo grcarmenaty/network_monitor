@@ -18,7 +18,8 @@
         },
         "targets": [
           {
-            "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "A"
           }
         ],
@@ -43,7 +44,8 @@
         },
         "targets": [
           {
-            "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "B"
           }
         ],
@@ -68,7 +70,8 @@
         },
         "targets": [
           {
-            "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "C"
           }
         ],
@@ -93,7 +96,8 @@
         },
         "targets": [
           {
-            "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "D"
           }
         ],
@@ -118,7 +122,8 @@
         },
         "targets": [
           {
-            "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "E"
           }
         ],
