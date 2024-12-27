@@ -23,7 +23,7 @@ A comprehensive network monitoring tool that uses iperf3, ping, and custom scrip
 
 ```
 git clone https://github.com/grcarmenaty/network_monitor.git
-cd network-monitor
+cd network_monitor
 ```
 
 2. Run the setup script with root privileges:
