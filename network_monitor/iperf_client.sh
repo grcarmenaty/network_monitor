@@ -14,35 +14,21 @@ while getopts "i:t:b:p:" opt; do
   case $opt in
     i) interface="$OPTARG" ;;
     t) target_ip="$OPTARG" ;;
-    b) bandwidth="$OPTARG" ;;  # Accept bandwidth parameter here
+    b) bandwidth="$OPTARG" ;;
     p) port="$OPTARG" ;;
     \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
     :) echo "Option -$OPTARG requires an argument." >&2; exit 1 ;;
   esac
 done
 
-# Check if interface is provided
-if [ -z "$interface" ]; then
-  echo "Error: Interface not specified. Use -i flag to specify the interface."
-  exit 1
-fi
-
-# Check if target IP is provided
-if [ -z "$target_ip" ]; then
-  echo "Error: Target IP not specified. Use -t flag to specify the target IP."
-  exit 1
-fi
-
-# Check if port is provided
-if [ -z "$port" ]; then
-  echo "Error: Port not specified. Use -p flag to specify the port."
+# Check if required parameters are provided
+if [ -z "$interface" ] || [ -z "$target_ip" ] || [ -z "$port" ]; then
+  echo "Error: Missing required parameters. Usage: $0 -i <interface> -t <target_ip> -p <port> [-b <bandwidth>]"
   exit 1
 fi
 
 # Get the local IP address
 local_ip=$(ip -4 addr show dev "$interface" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
-
-# Check if local_ip was successfully retrieved
 if [ -z "$local_ip" ]; then
   echo "Error: Could not retrieve IP address for interface $interface"
   exit 1
@@ -51,34 +37,25 @@ fi
 echo "Using interface: $interface"
 echo "Local IP address: $local_ip"
 echo "Target IP address: $target_ip"
+echo "Bandwidth: ${bandwidth:-not specified}"
 echo "Port: $port"
 
-# Run iperf3 client in reverse mode with UDP indefinitely, using specified bandwidth and formatting output in Mbits
-iperf3 -c "$target_ip" -u -R -p "$port" ${bandwidth:+-b "$bandwidth"} -t 0 -f m | while read -r line; do
-    timestamp=$(date +"%Y-%m-%d %H:%M:%S.%3N")
-    
-    # Extracting bitrate, jitter, and lost packets from the iperf3 output.
-    if [[ $line =~ \"bits_per_second\":([0-9.]+) ]]; then
-        bitrate="${BASH_REMATCH[1]}"
-    fi
-    
-    if [[ $line =~ \"jitter_ms\":([0-9.]+) ]]; then
-        jitter="${BASH_REMATCH[1]}"
-    fi
-    
-    if [[ $line =~ \"lost_packets\":([0-9]+) ]]; then
-        lost_packets="${BASH_REMATCH[1]}"
-        total_packets=$(echo "$lost_packets + $(grep 'Total datagrams' <<<"$line" | awk '{print $NF}')" | bc)
-        lost_percentage=$(echo "scale=2; ($lost_packets / $total_packets) * 100" | bc)
-    fi
-    
-    # Insert all metrics into the database in one query when all values are available.
-    if [[ -n "$bitrate" && -n "$jitter" && -n "$lost_percentage" ]]; then
-        mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "INSERT INTO iperf_results (timestamp, bitrate, jitter, lost_percentage) VALUES ('$timestamp', $bitrate, $jitter, $lost_percentage);"
-        # Reset variables after insertion to avoid duplicate entries.
-        bitrate=""
-        jitter=""
-        lost_percentage=""
+# Record start time
+start_time=$(date +%s.%N)
+
+# Run iperf3 client
+iperf3 -c "$target_ip" -u -R -p "$port" ${bandwidth:+-b "$bandwidth"} -t 0 -f m | while IFS= read -r line; do
+    # Parse the iperf3 output line
+    if [[ $line =~ \[.*\][[:space:]]+([0-9.]+)-([0-9.]+)[[:space:]]+sec[[:space:]]+[0-9.]+[[:space:]]MBytes[[:space:]]+([0-9.]+)[[:space:]]Mbits/sec[[:space:]]+([0-9.]+)[[:space:]]ms[[:space:]]+([0-9]+)/([0-9]+)[[:space:]]\(([0-9.]+)%\) ]]; then
+        elapsed_time="${BASH_REMATCH[2]}"
+        bitrate="${BASH_REMATCH[3]}"
+        jitter="${BASH_REMATCH[4]}"
+        lost_percentage="${BASH_REMATCH[7]}"
+        
+        # Calculate timestamp
+        timestamp=$(date -d "@$(echo "$start_time + $elapsed_time" | bc)" +"%Y-%m-%d %H:%M:%S.%3N")
+        
+        # Insert data into the database
+        mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "INSERT INTO iperf_results (timestamp, bitrate, jitter, lost_percentage) VALUES ('$timestamp', $bitrate, $jitter, $lost_percentage);" 2>/dev/null
     fi
 done
-
