@@ -9,6 +9,7 @@ port=5050
 target_ip=${REMOTE_DB_IP:-""}  # Default to REMOTE_DB_IP
 bandwidth=""
 create_default=false
+uninstall=false
 
 # Function to create default.conf
 create_default_conf() {
@@ -21,6 +22,26 @@ EOF
     echo "Created default.conf with current settings."
 }
 
+# Function to uninstall
+uninstall() {
+    echo "Uninstalling network monitor..."
+    
+    # Stop any running processes
+    pkill -f "iperf_client.sh"
+    pkill -f "ping_client.sh"
+    pkill -f "interruption_monitor.sh"
+    pkill -f "iperf3 -s"
+
+    # Remove symlink
+    rm -f /usr/local/bin/network_monitor
+
+    # Remove configuration and script files
+    rm -rf /opt/network_monitor
+
+    echo "Network monitor uninstalled."
+    exit 0
+}
+
 # Check if default.conf exists and source it if no flags are passed
 if [ $# -eq 0 ] && [ -f "/opt/network_monitor/default.conf" ]; then
     source /opt/network_monitor/default.conf
@@ -28,17 +49,23 @@ if [ $# -eq 0 ] && [ -f "/opt/network_monitor/default.conf" ]; then
 fi
 
 # Parse command-line options
-while getopts "i:t:p:b:d" opt; do
+while getopts "i:t:p:b:du" opt; do
   case $opt in
     i) interface="$OPTARG" ;;
     t) target_ip="$OPTARG" ;;
     p) port="$OPTARG" ;;
     b) bandwidth="$OPTARG" ;;
     d) create_default=true ;;
+    u) uninstall=true ;;
     \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
     :) echo "Option -$OPTARG requires an argument." >&2; exit 1 ;;
   esac
 done
+
+# Uninstall if -u flag is passed
+if [ "$uninstall" = true ]; then
+    uninstall
+fi
 
 # Create default.conf if -d flag is passed
 if [ "$create_default" = true ]; then
