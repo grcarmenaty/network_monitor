@@ -228,7 +228,7 @@ if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
 fi
 
 # Path to the Grafana dashboards folder
-grafana_dashboards_folder="grafana_dashboards"
+grafana_dashboards_folder="./network_monitor/grafana_dashboards"
 
 # Choose the appropriate dashboard file
 if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
