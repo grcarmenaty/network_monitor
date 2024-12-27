@@ -31,7 +31,6 @@ show_help() {
     echo
     echo "Example:"
     echo "  $0 -i eth0 -t 192.168.1.100 -p 5201 -b 100M"
-    exit 0
 }
 
 # Function to create default.conf
@@ -97,15 +96,10 @@ while [[ $# -gt 0 ]]; do
         -u) uninstall=true; shift ;;
         -a) uninstall_all=true; shift ;;
         -s) simulate_disconnections=true; shift ;;
-        -h|--help) show_help ;;
-        *) echo "Unknown option: $1" >&2; show_help ;;
+        -h|--help) show_help; exit 0 ;;
+        *) echo "Unknown option: $1" >&2; show_help; exit 1 ;;
     esac
 done
-
-# Show help if no arguments are provided
-if [ $# -eq 0 ]; then
-    show_help
-fi
 
 # Uninstall if -u flag is passed
 if [ "$uninstall" = true ]; then
