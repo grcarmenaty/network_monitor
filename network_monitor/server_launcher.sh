@@ -1,7 +1,10 @@
 #!/bin/bash
 
+# Set the script directory
+SCRIPT_DIR="/opt/network_monitor"
+
 # Source the setup.conf file
-source /opt/network_monitor/setup.conf
+source "$SCRIPT_DIR/setup.conf"
 
 # Initialize variables
 interface=""
@@ -15,7 +18,7 @@ simulate_disconnections=false
 
 # Function to display help
 show_help() {
-    echo "Usage: $0 [OPTIONS]"
+    echo "Usage: network_monitor [OPTIONS]"
     echo "Network monitoring tool with iperf3, ping, and connection interruption detection."
     echo
     echo "Options:"
@@ -30,12 +33,12 @@ show_help() {
     echo "  -h, --help       Display this help message"
     echo
     echo "Example:"
-    echo "  $0 -i eth0 -t 192.168.1.100 -p 5201 -b 100M"
+    echo "  network_monitor -i eth0 -t 192.168.1.100 -p 5201 -b 100M"
 }
 
 # Function to create default.conf
 create_default_conf() {
-    cat > /opt/network_monitor/default.conf << EOF
+    cat > "$SCRIPT_DIR/default.conf" << EOF
 INTERFACE=$interface
 TARGET_IP=$target_ip
 PORT=$port
@@ -56,9 +59,9 @@ uninstall() {
 
     # Call the uninstall.sh script
     if [ "$uninstall_all" = true ]; then
-        /opt/network_monitor/uninstall.sh -a
+        "$SCRIPT_DIR/uninstall.sh" -a
     else
-        /opt/network_monitor/uninstall.sh
+        "$SCRIPT_DIR/uninstall.sh"
     fi
 
     echo "Network monitor uninstalled."
@@ -71,7 +74,7 @@ simulate_disconnections() {
         sleep 60  # Wait for 1 minute
         duration=$((RANDOM % 6 + 5))  # Random number between 5 and 10
         echo "Simulating disconnection for $duration seconds"
-        sudo /opt/network_monitor/disconnection_test.sh -t "$target_ip" &
+        sudo "$SCRIPT_DIR/disconnection_test.sh" -t "$target_ip" &
         disconnect_pid=$!
         sleep $duration
         sudo kill -INT $disconnect_pid
@@ -80,8 +83,8 @@ simulate_disconnections() {
 }
 
 # Check if default.conf exists and source it if no flags are passed
-if [ $# -eq 0 ] && [ -f "/opt/network_monitor/default.conf" ]; then
-    source /opt/network_monitor/default.conf
+if [ $# -eq 0 ] && [ -f "$SCRIPT_DIR/default.conf" ]; then
+    source "$SCRIPT_DIR/default.conf"
     echo "Using settings from default.conf"
 fi
 
@@ -140,9 +143,9 @@ echo "Press enter when you are sure there is an iPerf3 server running on target 
 read -r
 
 # Launch other scripts in the background
-./iperf_client.sh -i "$interface" -t "$target_ip" -p "$port" ${bandwidth:+-b "$bandwidth"} &
-./ping_client.sh -i "$interface" -t "$target_ip" &
-./interruption_monitor.sh -i "$interface" -t "$target_ip" &
+"$SCRIPT_DIR/iperf_client.sh" -i "$interface" -t "$target_ip" -p "$port" ${bandwidth:+-b "$bandwidth"} &
+"$SCRIPT_DIR/ping_client.sh" -i "$interface" -t "$target_ip" &
+"$SCRIPT_DIR/interruption_monitor.sh" -i "$interface" -t "$target_ip" &
 
 # Start simulating disconnections if -s flag is passed
 if [ "$simulate_disconnections" = true ]; then
