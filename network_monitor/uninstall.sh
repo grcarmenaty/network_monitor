@@ -6,72 +6,83 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-# Check if setup.conf exists
-if [ ! -f "/opt/network_monitor/setup.conf" ]; then
-    echo "Error: setup.conf not found in /opt/network_monitor/. Cannot proceed with uninstallation."
-    exit 1
-fi
+# Initialize flag
+uninstall_all=false
+
+# Parse command line arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -a|--all) uninstall_all=true ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
 
 # Source the setup.conf file
-source /opt/network_monitor/setup.conf
-
-# Remove local database and user
-echo "Removing local MySQL database and user..."
-mysql -e "DROP DATABASE IF EXISTS $DB_NAME;"
-mysql -e "DROP USER IF EXISTS '$DB_USER'@'localhost';"
-mysql -e "FLUSH PRIVILEGES;"
-
-# Function to remove Grafana data source
-remove_grafana_datasource() {
-    local name=$1
-    local datasource_id=$(curl -s -H "Content-Type: application/json" -X GET http://admin:admin@localhost:3000/api/datasources/name/$name | jq -r '.id')
-    
-    if [ "$datasource_id" != "null" ]; then
-        curl -X DELETE http://admin:admin@localhost:3000/api/datasources/$datasource_id
-        echo "Removed Grafana data source: $name"
-    else
-        echo "Data source $name not found in Grafana"
-    fi
-}
-
-# Remove Grafana data source for local database
-echo "Removing Grafana data source for local database..."
-remove_grafana_datasource "LocalNetworkMonitor"
-
-# If remote database was added, remove its data source
-if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
-    echo "Removing Grafana data source for remote database..."
-    remove_grafana_datasource "RemoteNetworkMonitor"
-fi
-
-# Remove Grafana dashboard
-echo "Removing Grafana dashboard..."
-DASHBOARD_UID=$(curl -s -H "Content-Type: application/json" -X GET http://admin:admin@localhost:3000/api/dashboards/db/network-monitoring-dashboard | jq -r '.dashboard.uid')
-if [ ! -z "$DASHBOARD_UID" ] && [ "$DASHBOARD_UID" != "null" ]; then
-    curl -X DELETE http://admin:admin@localhost:3000/api/dashboards/uid/$DASHBOARD_UID
-    echo "Removed Grafana dashboard"
+if [ -f "/opt/network_monitor/setup.conf" ]; then
+    source /opt/network_monitor/setup.conf
 else
-    echo "Dashboard not found in Grafana"
+    echo "setup.conf not found. Some operations may fail."
 fi
 
-# Remove symbolic link
-echo "Removing symbolic link..."
+# Remove the symbolic link
 if [ -L "/usr/local/bin/network_monitor" ]; then
     rm /usr/local/bin/network_monitor
+    echo "Removed symbolic link: /usr/local/bin/network_monitor"
 fi
 
-# Remove network_monitor files
-echo "Removing network_monitor files..."
-rm -rf /opt/network_monitor
-
-echo "Uninstallation complete. The following actions were performed:"
-echo "- Removed local MySQL database $DB_NAME and user $DB_USER"
-echo "- Removed Grafana data source for local database"
-if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
-    echo "- Removed Grafana data source for remote database"
+# Remove the /opt/network_monitor directory
+if [ -d "/opt/network_monitor" ]; then
+    rm -rf /opt/network_monitor
+    echo "Removed directory: /opt/network_monitor"
 fi
-echo "- Removed Grafana dashboard"
-echo "- Removed symbolic link for network_monitor command"
-echo "- Removed all files in /opt/network_monitor"
-echo ""
-echo "Note: MySQL, iperf3, and Grafana have not been uninstalled."
+
+# Remove the database and user
+if command -v mysql &> /dev/null; then
+    if [ -n "$DB_NAME" ] && [ -n "$DB_USER" ]; then
+        mysql -e "DROP DATABASE IF EXISTS $DB_NAME;"
+        mysql -e "DROP USER IF EXISTS '$DB_USER'@'%';"
+        mysql -e "FLUSH PRIVILEGES;"
+        echo "Removed database $DB_NAME and user $DB_USER"
+    else
+        echo "Database name or user not found in setup.conf. Skipping database removal."
+    fi
+fi
+
+if [ "$uninstall_all" = true ]; then
+    # Remove iperf3
+    if command -v iperf3 &> /dev/null; then
+        apt-get remove -y iperf3
+        echo "Removed iperf3"
+    fi
+
+    # Remove Grafana
+    if command -v grafana-server &> /dev/null; then
+        systemctl stop grafana-server
+        systemctl disable grafana-server
+        apt-get remove -y grafana
+        rm -rf /etc/grafana /var/lib/grafana
+        echo "Removed Grafana"
+    fi
+
+    # Remove jq
+    if command -v jq &> /dev/null; then
+        apt-get remove -y jq
+        echo "Removed jq"
+    fi
+
+    # Remove MySQL server
+    if command -v mysql &> /dev/null; then
+        apt-get remove -y mysql-server
+        apt-get autoremove -y
+        rm -rf /var/lib/mysql /etc/mysql
+        echo "Removed MySQL server"
+    fi
+
+    echo "All associated programs have been uninstalled."
+else
+    echo "Associated programs (iperf3, Grafana, jq, MySQL) were not uninstalled."
+    echo "Use the -a or --all flag to uninstall these programs as well."
+fi
+
+echo "Uninstallation complete. The network monitoring system has been removed."
