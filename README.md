@@ -1,81 +1,114 @@
 # Network Monitor
 
-This tool monitors network performance using iperf3 and ping, storing results in a MySQL database and visualizing them with Grafana.
+A comprehensive network monitoring tool that uses iperf3, ping, and custom scripts to measure network performance and detect interruptions.
+
+## Features
+
+- Measure network throughput using iperf3
+- Monitor network latency using ping
+- Detect and log network interruptions
+- Simulate periodic network disconnections
+- Configurable settings with command-line options or default configuration file
+- Easy installation and uninstallation process
+
+## Prerequisites
+
+- Linux-based operating system
+- Root or sudo access
+- Git (for cloning the repository)
 
 ## Installation
 
 1. Clone the repository:
 
 ```
-git clone https://github.com/grcarmenaty/network_monitor.git
-cd network_monitor
+git clone https://github.com/yourusername/network-monitor.git
+cd network-monitor
 ```
 
-2. Navigate to the network_monitor folder:
+2. Run the setup script with root privileges:
 
 ```
-cd network_monitor
-```
-
-3. Run the setup script. Make sure you have edited setup.conf if you're using setup.conf (see Configuration below):
-
-```
-sudo bash ./setup.sh
+sudo ./setup.sh
 ```
 
 This script will:
-- Install MySQL, iperf3, and Grafana if not already installed
-- Create a MySQL database and user
-- Install the network monitoring script
-- Configure Grafana with the appropriate data source(s)
-- Import the Grafana dashboard
+- Install required dependencies (iperf3, MySQL, Grafana, jq)
+- Set up the MySQL database
+- Configure Grafana
+- Install the network monitoring scripts
 
-4. Follow the prompts to configure the local database and optionally add a remote database.
+3. Follow the prompts to configure the local and (optionally) remote database settings.
 
 ## Usage
 
-1. Run the network monitoring tool:
+After installation, you can run the network monitor using the `network_monitor` command:
 
 ```
-network_monitor -i <interface> -t <target_ip> [-b <bandwidth>] [-p <port>]
+network_monitor [OPTIONS]
 ```
 
-- `-i`: Network interface to use
-- `-t`: Target IP address
-- `-b`: (Optional) Bandwidth limit for iperf3
-- `-p`: (Optional) Port to use for iperf3 (default: 5050)
+### Options
 
-2. The tool will start an iperf3 server and wait for you to confirm that an iperf3 server is running on the target IP.
+- `-i <interface>`: Specify the network interface to use
+- `-t <target_ip>`: Specify the target IP address
+- `-p <port>`: Specify the port for iperf3 (default: 5050)
+- `-b <bandwidth>`: Specify the bandwidth for iperf3
+- `-d`: Create a default.conf file with current settings
+- `-u`: Uninstall the network monitor
+- `-a`: Used with -u, uninstall all associated programs
+- `-s`: Simulate periodic disconnections
+- `-h, --help`: Display help message
 
-3. Once confirmed, it will begin monitoring and storing results in the database.
+### Examples
 
-4. Access the Grafana dashboard at `http://localhost:3000` to view the results.
-- Default login: admin/admin (you'll be prompted to change on first login)
-
-5. To stop monitoring, use Ctrl+C.
-
-## Configuration
-
-If you want to automate the setup process, you can create a `setup.conf` file in the `network_monitor` folder with the following content:
+1. Run with specific interface and target IP:
 
 ```
-DB_NAME=your_database_name
-DB_USER=your_database_user
-DB_PASS=your_database_password
-ADD_REMOTE=y
-REMOTE_DB_IP=remote_ip_address
-REMOTE_DB_PORT=remote_port
-REMOTE_DB_NAME=remote_database_name
-REMOTE_DB_USER=remote_database_user
-REMOTE_DB_PASS=remote_database_password
+network_monitor -i eth0 -t 192.168.1.100
 ```
 
-Adjust the values according to your needs. If `setup.conf` is present, the setup script will use these values instead of prompting for input. Please be aware that an example `setup.conf` is already included in the repository, delete it if you want to proceed with a manual install.
+2. Create a default configuration file:
 
-## Troubleshooting
+```
+network_monitor -i eth0 -t 192.168.1.100 -p 5201 -b 100M -d
+```
 
-- If you encounter permission issues, ensure you're running the setup script with sudo.
-- Check MySQL and Grafana logs if you experience database or visualization issues.
-- Verify that iperf3 is installed and running correctly on both the local and target machines.
+3. Run with simulated disconnections:
 
-For more detailed information or to report issues, please visit the [GitHub repository](https://github.com/grcarmenaty/network_monitor).
+```
+network_monitor -i eth0 -t 192.168.1.100 -s
+```
+
+4. Display help:
+
+```
+network_monitor -h
+```
+
+## Uninstallation
+
+To uninstall the network monitor:
+
+```
+network_monitor -u
+```
+
+To uninstall the network monitor and all associated programs:
+
+```
+network_monitor -u -a
+```
+
+## Accessing Results
+
+- The network monitoring results are stored in the MySQL database configured during installation.
+- You can view the results using the Grafana dashboard installed at `http://localhost:3000`.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
