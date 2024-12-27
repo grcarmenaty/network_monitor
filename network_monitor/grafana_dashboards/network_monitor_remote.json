@@ -12,13 +12,18 @@
       {
         "type": "timeseries",
         "title": "Data Rate",
+        "datasource": {
+          "type": "datasource",
+          "uid": "-- Mixed --"
+        },
         "targets": [
           {
             "datasource": {
               "type": "mysql",
               "uid": "LocalNetworkMonitor"
             },
-            "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "A"
           },
           {
@@ -26,7 +31,8 @@
               "type": "mysql",
               "uid": "RemoteNetworkMonitor"
             },
-            "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, bitrate AS value FROM iperf_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "B"
           }
         ],
@@ -45,13 +51,18 @@
       {
         "type": "timeseries",
         "title": "Jitter",
+        "datasource": {
+          "type": "datasource",
+          "uid": "-- Mixed --"
+        },
         "targets": [
           {
             "datasource": {
               "type": "mysql",
               "uid": "LocalNetworkMonitor"
             },
-            "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "A"
           },
           {
@@ -59,7 +70,8 @@
               "type": "mysql",
               "uid": "RemoteNetworkMonitor"
             },
-            "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, jitter AS value FROM iperf_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "B"
           }
         ],
@@ -78,13 +90,18 @@
       {
         "type": "timeseries",
         "title": "Lost Packets",
+        "datasource": {
+          "type": "datasource",
+          "uid": "-- Mixed --"
+        },
         "targets": [
           {
             "datasource": {
               "type": "mysql",
               "uid": "LocalNetworkMonitor"
             },
-            "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "A"
           },
           {
@@ -92,7 +109,8 @@
               "type": "mysql",
               "uid": "RemoteNetworkMonitor"
             },
-            "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, lost_percentage AS value FROM iperf_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "B"
           }
         ],
@@ -111,13 +129,18 @@
       {
         "type": "timeseries",
         "title": "Latency",
+        "datasource": {
+          "type": "datasource",
+          "uid": "-- Mixed --"
+        },
         "targets": [
           {
             "datasource": {
               "type": "mysql",
               "uid": "LocalNetworkMonitor"
             },
-            "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "A"
           },
           {
@@ -125,7 +148,8 @@
               "type": "mysql",
               "uid": "RemoteNetworkMonitor"
             },
-            "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, latency AS value FROM ping_results WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "B"
           }
         ],
@@ -144,13 +168,18 @@
       {
         "type": "timeseries",
         "title": "Interruption Time",
+        "datasource": {
+          "type": "datasource",
+          "uid": "-- Mixed --"
+        },
         "targets": [
           {
             "datasource": {
               "type": "mysql",
               "uid": "LocalNetworkMonitor"
             },
-            "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "A"
           },
           {
@@ -158,7 +187,8 @@
               "type": "mysql",
               "uid": "RemoteNetworkMonitor"
             },
-            "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions ORDER BY time ASC;",
+            "format": "time_series",
+            "rawSql": "SELECT timestamp AS time, interruption_time AS value FROM interruptions WHERE $__timeFilter(timestamp) ORDER BY time ASC;",
             "refId": "B"
           }
         ],
