@@ -22,7 +22,7 @@ A comprehensive network monitoring tool that uses iperf3, ping, and custom scrip
 1. Clone the repository:
 
 ```
-git clone https://github.com/yourusername/network-monitor.git
+git clone https://github.com/grcarmenaty/network_monitor.git
 cd network-monitor
 ```
 
