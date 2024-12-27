@@ -29,7 +29,7 @@ cd network_monitor
 2. Run the setup script with root privileges:
 
 ```
-sudo ./setup.sh
+sudo bash ./setup.sh
 ```
 
 This script will:
