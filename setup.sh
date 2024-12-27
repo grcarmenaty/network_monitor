@@ -9,8 +9,8 @@ fi
 # Create the /opt/network_monitor directory
 mkdir -p /opt/network_monitor
 
-# Check if setup.conf exists in the current directory
-if [ ! -f "setup.conf" ]; then
+# Check if setup.conf exists in the network_monitor folder
+if [ ! -f "network_monitor/setup.conf" ]; then
     echo "Creating setup.conf file..."
     
     # Prompt for local database configuration
@@ -47,8 +47,8 @@ if [ ! -f "setup.conf" ]; then
 
     echo "setup.conf file created with user inputs in /opt/network_monitor/."
 else
-    echo "setup.conf file already exists in the current directory. Copying to /opt/network_monitor/."
-    cp setup.conf /opt/network_monitor/setup.conf
+    echo "setup.conf file already exists in the network_monitor folder. Copying to /opt/network_monitor/."
+    cp network_monitor/setup.conf /opt/network_monitor/setup.conf
 fi
 
 # Source the setup.conf file
