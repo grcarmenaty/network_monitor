@@ -5,12 +5,16 @@ source /opt/network_monitor/setup.conf
 
 # Initialize variables
 target_ip=${REMOTE_DB_IP:-""}
+interface=""
 
 # Parse command-line options
-while getopts "t:" opt; do
+while getopts "t:i:" opt; do
   case $opt in
     t)
       target_ip="$OPTARG"
+      ;;
+    i)
+      interface="$OPTARG"
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -29,7 +33,14 @@ if [ -z "$target_ip" ]; then
   exit 1
 fi
 
+# Check if interface is provided
+if [ -z "$interface" ]; then
+  echo "Error: Interface not specified. Use -i flag to specify the interface."
+  exit 1
+fi
+
 echo "Monitoring interruptions for target IP: $target_ip"
+echo "Using interface: $interface"
 
 # Function to check connectivity and record interruptions
 check_connectivity() {
@@ -37,7 +48,7 @@ check_connectivity() {
     local disconnected=false
 
     while true; do
-        if ping -c 1 -W 1 "$target_ip" &> /dev/null; then
+        if ping -c 1 -W 1 -I "$interface" "$target_ip" &> /dev/null; then
             if $disconnected; then
                 local end_time=$(date +%s.%N)
                 local interruption_time=$(echo "$end_time - $start_time" | bc)
@@ -59,4 +70,3 @@ check_connectivity() {
 
 # Start the connectivity check
 check_connectivity
-
