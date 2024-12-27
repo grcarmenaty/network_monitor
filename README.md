@@ -107,7 +107,7 @@ network_monitor -u -a
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+This project is not being actively maintained. I will do my best to look into pull requests, but if you see I'm slower than you'd like, feel free to fork the project.
 
 ## License
 
