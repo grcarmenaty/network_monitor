@@ -52,8 +52,8 @@ echo "Using interface: $interface"
 echo "Local IP address: $local_ip"
 echo "Target IP address: $target_ip"
 
-# Run ping with parsing and database insertion
-ping -i 1 -W 1 -I "$interface" "$target_ip" | while IFS= read -r line; do
+# Run ping with parsing and database insertion (unbuffered for real-time processing)
+stdbuf -oL -eL ping -i 1 -W 1 -I "$interface" "$target_ip" | while IFS= read -r line; do
     timestamp=$(date +"%Y-%m-%d %H:%M:%S.%3N")
     if [[ $line =~ time=([0-9.]+)[[:space:]]ms ]]; then
         latency="${BASH_REMATCH[1]}"

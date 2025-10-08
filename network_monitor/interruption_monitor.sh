@@ -46,25 +46,64 @@ echo "Using interface: $interface"
 check_connectivity() {
     local start_time=0
     local disconnected=false
+    local consecutive_failures=0
+    local consecutive_successes=0
+    local failure_threshold=5  # Require 5 consecutive failures to declare disconnection
+    local recovery_threshold=3  # Require 3 consecutive successes to declare recovery
+    local min_interruption_duration=2.0  # Only record interruptions longer than 2 seconds
+
+    echo "🔍 Interruption detection parameters:"
+    echo "   - Failure threshold: $failure_threshold consecutive ping failures"
+    echo "   - Recovery threshold: $recovery_threshold consecutive ping successes"
+    echo "   - Minimum interruption duration: $min_interruption_duration seconds"
+    echo "   - Ping interval: 1 second"
+    echo ""
 
     while true; do
-        if ping -c 1 -W 1 -I "$interface" "$target_ip" &> /dev/null; then
-            if $disconnected; then
+        if ping -c 1 -W 2 -I "$interface" "$target_ip" &> /dev/null; then
+            # Ping successful
+            consecutive_failures=0
+            consecutive_successes=$((consecutive_successes + 1))
+            
+            if $disconnected && [ $consecutive_successes -ge $recovery_threshold ]; then
                 local end_time=$(date +%s.%N)
-                local interruption_time=$(echo "$end_time - $start_time" | bc)
-                local timestamp=$(date +"%Y-%m-%d %H:%M:%S.%3N")
-                mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "INSERT INTO interruptions (timestamp, interruption_time) VALUES ('$timestamp', $interruption_time);"
+                # Calculate interruption time using awk for floating point arithmetic
+                local interruption_time=$(awk "BEGIN {printf \"%.3f\", $end_time - $start_time}")
+                
+                # Only record significant interruptions (longer than minimum threshold)
+                if [ -n "$interruption_time" ] && [ "$(awk "BEGIN {print ($interruption_time >= $min_interruption_duration)}")" = "1" ]; then
+                    local timestamp=$(date +"%Y-%m-%d %H:%M:%S.%3N")
+                    echo "🔴 REAL INTERRUPTION DETECTED: Connection restored after $interruption_time seconds"
+                    echo "📝 Recording interruption in database..."
+                    mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "INSERT INTO interruptions (timestamp, interruption_time) VALUES ('$timestamp', $interruption_time);" 2>/dev/null
+                    if [ $? -eq 0 ]; then
+                        echo "✅ Interruption recorded successfully"
+                    else
+                        echo "❌ Failed to record interruption in database"
+                    fi
+                else
+                    echo "🟡 Brief connectivity issue resolved ($interruption_time seconds) - not recording (below $min_interruption_duration second threshold)"
+                fi
                 disconnected=false
-                echo "Connection restored. Interruption lasted $interruption_time seconds."
+                consecutive_successes=0
+            elif ! $disconnected; then
+                # Connection is stable, just reset counters silently
+                consecutive_successes=0
             fi
         else
-            if ! $disconnected; then
+            # Ping failed
+            consecutive_successes=0
+            consecutive_failures=$((consecutive_failures + 1))
+            
+            if ! $disconnected && [ $consecutive_failures -ge $failure_threshold ]; then
                 start_time=$(date +%s.%N)
                 disconnected=true
-                echo "Connection lost at $(date). Recording interruption..."
+                echo "🔴 Connection lost at $(date) after $consecutive_failures consecutive ping failures. Monitoring for recovery..."
+            elif ! $disconnected; then
+                echo "🟡 Ping failure $consecutive_failures/$failure_threshold (not yet considered disconnected)"
             fi
         fi
-        sleep 0.1
+        sleep 1  # Check every second instead of every 0.1 seconds
     done
 }
 

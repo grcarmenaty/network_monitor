@@ -19,6 +19,8 @@ interface=""
 port=5050
 target_ip=${REMOTE_DB_IP:-""}  # Default to REMOTE_DB_IP
 bandwidth=""
+server_ip=""  # IP address to bind the iperf3 server to
+server_interface=""  # Network interface to bind the iperf3 server to
 create_default=false
 uninstall=false
 uninstall_all=false
@@ -30,18 +32,22 @@ show_help() {
     echo "Network monitoring tool with iperf3, ping, and connection interruption detection."
     echo
     echo "Options:"
-    echo "  -i <interface>   Specify the network interface to use"
-    echo "  -t <target_ip>   Specify the target IP address"
-    echo "  -p <port>        Specify the port for iperf3 (default: 5050)"
-    echo "  -b <bandwidth>   Specify the bandwidth for iperf3"
-    echo "  -d               Create a default.conf file with current settings (requires superuser)"
-    echo "  -u               Uninstall the network monitor (requires superuser)"
-    echo "  -a               Used with -u, uninstall all associated programs (requires superuser)"
-    echo "  -s               Simulate periodic disconnections (requires superuser)"
-    echo "  -h, --help       Display this help message"
+    echo "  -i <interface>       Specify the network interface to use for client connections"
+    echo "  -t <target_ip>       Specify the target IP address"
+    echo "  -p <port>            Specify the port for iperf3 (default: 5050)"
+    echo "  -b <bandwidth>       Specify the bandwidth for iperf3"
+    echo "  -S <server_ip>       Bind iperf3 server to specific IP address"
+    echo "  -I <server_interface> Bind iperf3 server to specific network interface"
+    echo "  -d                   Create a default.conf file with current settings (requires superuser)"
+    echo "  -u                   Uninstall the network monitor (requires superuser)"
+    echo "  -a                   Used with -u, uninstall all associated programs (requires superuser)"
+    echo "  -s                   Simulate periodic disconnections (requires superuser)"
+    echo "  -h, --help           Display this help message"
     echo
-    echo "Example:"
+    echo "Examples:"
     echo "  network_monitor -i eth0 -t 192.168.1.100 -p 5201 -b 100M"
+    echo "  network_monitor -i eth0 -t 10.0.0.11 -S 10.0.0.12 -p 5050"
+    echo "  network_monitor -i eth0 -t 10.0.0.11 -I enp60s0 -p 5050"
 }
 
 # Function to create default.conf
@@ -52,6 +58,8 @@ INTERFACE=$interface
 TARGET_IP=$target_ip
 PORT=$port
 BANDWIDTH=$bandwidth
+SERVER_IP=$server_ip
+SERVER_INTERFACE=$server_interface
 EOF
     echo "Created default.conf with current settings."
 }
@@ -100,6 +108,8 @@ if [ -f "$SCRIPT_DIR/default.conf" ]; then
     target_ip=${TARGET_IP:-$target_ip}
     port=${PORT:-$port}
     bandwidth=${BANDWIDTH:-$bandwidth}
+    server_ip=${SERVER_IP:-$server_ip}
+    server_interface=${SERVER_INTERFACE:-$server_interface}
 fi
 
 # Parse command-line options
@@ -109,6 +119,8 @@ while [[ $# -gt 0 ]]; do
         -t) target_ip="$2"; shift 2 ;;
         -p) port="$2"; shift 2 ;;
         -b) bandwidth="$2"; shift 2 ;;
+        -S) server_ip="$2"; shift 2 ;;
+        -I) server_interface="$2"; shift 2 ;;
         -d) create_default=true; check_superuser; shift ;;
         -u) uninstall=true; check_superuser; shift ;;
         -a) uninstall_all=true; shift ;;
@@ -146,6 +158,31 @@ if [ -z "$target_ip" ]; then
   exit 1
 fi
 
+# Validate server IP if specified
+if [ -n "$server_ip" ]; then
+    # Check if the IP address is valid and available on this system
+    if ! ip addr show | grep -q "$server_ip"; then
+        echo "⚠️  Warning: Server IP $server_ip not found on this system."
+        echo "Available IP addresses:"
+        ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1'
+        echo "Continuing anyway - iperf3 will report if binding fails."
+    else
+        echo "✅ Server IP $server_ip found on this system."
+    fi
+fi
+
+# Validate server interface if specified
+if [ -n "$server_interface" ]; then
+    if ! ip link show "$server_interface" &>/dev/null; then
+        echo "❌ Error: Server interface $server_interface not found on this system."
+        echo "Available interfaces:"
+        ip link show | grep -E "^[0-9]+:" | cut -d: -f2 | tr -d ' '
+        exit 1
+    else
+        echo "✅ Server interface $server_interface found on this system."
+    fi
+fi
+
 # Get the local IP address
 local_ip=$(ip -4 addr show dev "$interface" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
 
@@ -155,35 +192,134 @@ if [ -z "$local_ip" ]; then
   exit 1
 fi
 
-echo "Using interface: $interface"
-echo "Local IP address: $local_ip"
-echo "Target IP address: $target_ip"
-echo "Starting iperf3 server on port $port..."
+echo "📡 Client interface: $interface"
+echo "📡 Client IP address: $local_ip"
+echo "🎯 Target IP address: $target_ip"
+if [ -n "$server_ip" ]; then
+    echo "🔗 Server will bind to IP: $server_ip"
+fi
+if [ -n "$server_interface" ]; then
+    echo "🔗 Server will bind to interface: $server_interface"
+fi
+echo "🚀 Starting iperf3 server on port $port..."
 
-# Start iperf3 server in the background
-iperf3 -s -p "$port" &
+# Check if port is already in use
+if netstat -tuln 2>/dev/null | grep -q ":$port "; then
+    echo "⚠️  Warning: Port $port is already in use. Consider using a different port with -p option."
+    echo "Current processes using port $port:"
+    netstat -tuln | grep ":$port "
+    echo
+fi
+
+# Build iperf3 server command with binding options
+server_cmd="iperf3 -s -p $port"
+
+# Add server IP binding if specified
+if [ -n "$server_ip" ]; then
+    server_cmd="$server_cmd -B $server_ip"
+    echo "🔗 Binding server to IP address: $server_ip"
+fi
+
+# Add server interface binding if specified
+if [ -n "$server_interface" ]; then
+    server_cmd="$server_cmd --bind-dev $server_interface"
+    echo "🔗 Binding server to interface: $server_interface"
+fi
+
+# Start iperf3 server in the background with better error handling
+echo "Starting iperf3 server with command: $server_cmd"
+$server_cmd &
 server_pid=$!
 
-echo "Press enter when you are sure there is an iPerf3 server running on target IP listening on port $port"
+# Wait a moment for server to start
+sleep 2
+
+# Check if server started successfully
+if ! kill -0 $server_pid 2>/dev/null; then
+    echo "❌ Failed to start iperf3 server on port $port"
+    echo "Try using a different port: network_monitor -i $interface -t $target_ip -p 5201"
+    exit 1
+fi
+
+echo "✅ iperf3 server started successfully on port $port"
+echo "📡 Waiting for connection from $target_ip..."
+echo "Press enter when you are sure there is an iperf3 server running on target IP listening on port $port"
 read -r
 
-# Launch other scripts in the background
+# Function to cleanup all processes on exit
+cleanup() {
+    echo
+    echo "🛑 Stopping network monitor..."
+    
+    # Kill all background processes
+    if [ -n "$iperf_client_pid" ]; then
+        kill $iperf_client_pid 2>/dev/null
+        echo "   Stopped iperf3 client"
+    fi
+    
+    if [ -n "$ping_client_pid" ]; then
+        kill $ping_client_pid 2>/dev/null
+        echo "   Stopped ping client"
+    fi
+    
+    if [ -n "$interruption_monitor_pid" ]; then
+        kill $interruption_monitor_pid 2>/dev/null
+        echo "   Stopped interruption monitor"
+    fi
+    
+    if [ -n "$server_pid" ]; then
+        kill $server_pid 2>/dev/null
+        echo "   Stopped iperf3 server"
+    fi
+    
+    if [ "$simulate_disconnections" = true ] && [ -n "$simulate_pid" ]; then
+        kill $simulate_pid 2>/dev/null
+        echo "   Stopped disconnection simulation"
+    fi
+    
+    # Kill any remaining iperf3 processes
+    pkill -f "iperf3.*-p $port" 2>/dev/null
+    
+    # Kill any remaining monitoring processes
+    pkill -f "iperf_client.sh" 2>/dev/null
+    pkill -f "ping_client.sh" 2>/dev/null
+    pkill -f "interruption_monitor.sh" 2>/dev/null
+    
+    echo "✅ Network monitor stopped cleanly"
+    exit 0
+}
+
+# Set up signal handlers for graceful shutdown
+trap cleanup SIGINT SIGTERM EXIT
+
+# Launch other scripts in the background and store their PIDs
+echo "🚀 Starting monitoring processes..."
+
 "$SCRIPT_DIR/iperf_client.sh" -i "$interface" -t "$target_ip" -p "$port" ${bandwidth:+-b "$bandwidth"} &
+iperf_client_pid=$!
+
 "$SCRIPT_DIR/ping_client.sh" -i "$interface" -t "$target_ip" &
+ping_client_pid=$!
+
 "$SCRIPT_DIR/interruption_monitor.sh" -i "$interface" -t "$target_ip" &
+interruption_monitor_pid=$!
+
+echo "📊 Monitoring processes started:"
+echo "   iperf3 client: PID $iperf_client_pid"
+echo "   ping client: PID $ping_client_pid"
+echo "   interruption monitor: PID $interruption_monitor_pid"
 
 # Start simulating disconnections if -s flag is passed
 if [ "$simulate_disconnections" = true ]; then
     simulate_disconnections &
     simulate_pid=$!
+    echo "   disconnection simulation: PID $simulate_pid"
 fi
 
-# Wait for all background processes to finish
+echo
+echo "📡 Network monitoring is running..."
+echo "💡 Press Ctrl+C to stop all monitoring processes"
+echo
+
+# Wait for the server process or any signal
 wait $server_pid
-
-# Kill the simulation process if it's running
-if [ "$simulate_disconnections" = true ]; then
-    kill $simulate_pid 2>/dev/null
-fi
-
-echo "Iperf3 server stopped."

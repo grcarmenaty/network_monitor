@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Network Monitor Setup Script - Definitive Version
+# Network Monitor Setup Script - Complete Version with All Fixes
 # This script installs and configures MariaDB, Grafana, and network monitoring tools
-# Incorporates all fixes for common installation issues
+# Incorporates all fixes: timezone handling, server binding, signal handling, parsing fixes
 
 # Check if the script is being run as superuser
 if [ "$(id -u)" -ne 0 ]; then
@@ -11,13 +11,14 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 echo "========================================="
-echo "🚀 Network Monitor Setup - Definitive"
+echo "🚀 Network Monitor Setup - Complete"
 echo "========================================="
 echo "This script will install and configure:"
-echo "- MariaDB database server"
-echo "- Grafana monitoring dashboard"
-echo "- Network monitoring tools (iperf3, jq)"
+echo "- MariaDB database server with timezone handling"
+echo "- Grafana monitoring dashboard with timezone fixes"
+echo "- Network monitoring tools (iperf3, jq, bc)"
 echo "- Database tables and configuration"
+echo "- Server binding and signal handling improvements"
 echo "========================================="
 echo
 
@@ -83,7 +84,17 @@ else
     echo "✅ jq is already installed."
 fi
 
-# Function to handle MariaDB installation with error recovery
+# Check if bc is installed (FIX: Added bc installation)
+if ! command -v bc &> /dev/null
+then
+    echo "📦 Installing bc (calculator)..."
+    apt-get install -y bc
+    echo "✅ bc installation complete."
+else
+    echo "✅ bc is already installed."
+fi
+
+# Function to handle MariaDB installation with error recovery (IMPROVED)
 install_mariadb() {
     echo "📦 Installing MariaDB server..."
     
@@ -302,6 +313,31 @@ else
     systemctl enable grafana-server
 fi
 
+# FIX: Configure Grafana timezone to match system timezone
+echo "🕐 Configuring Grafana timezone..."
+GRAFANA_CONFIG="/etc/grafana/grafana.ini"
+SYSTEM_TIMEZONE=$(timedatectl show --property=Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null || echo "UTC")
+
+# Update Grafana configuration for timezone
+if [ -f "$GRAFANA_CONFIG" ]; then
+    # Set default timezone in Grafana config
+    sed -i "s/^;default_timezone =.*/default_timezone = $SYSTEM_TIMEZONE/" "$GRAFANA_CONFIG"
+    sed -i "s/^default_timezone =.*/default_timezone = $SYSTEM_TIMEZONE/" "$GRAFANA_CONFIG"
+    
+    # If the line doesn't exist, add it
+    if ! grep -q "default_timezone" "$GRAFANA_CONFIG"; then
+        echo "default_timezone = $SYSTEM_TIMEZONE" >> "$GRAFANA_CONFIG"
+    fi
+    
+    echo "✅ Grafana timezone set to: $SYSTEM_TIMEZONE"
+    
+    # Restart Grafana to apply timezone changes
+    systemctl restart grafana-server
+    sleep 5
+else
+    echo "⚠️  Grafana config file not found, timezone may not be set correctly"
+fi
+
 # Create the necessary tables
 echo "🗄️ Creating database tables..."
 mysql -u $DB_USER -p$DB_PASS $DB_NAME -e "
@@ -334,6 +370,9 @@ cp network_monitor/*.sh /opt/network_monitor/ 2>/dev/null || true
 
 # Make all scripts executable
 chmod +x /opt/network_monitor/*.sh 2>/dev/null || true
+
+echo "🔧 Scripts include robust interruption detection (requires 5 consecutive ping failures, 2+ second duration)"
+echo "🔧 Scripts include real-time database insertion (no buffering delays)"
 
 # Create symbolic link to server_launcher.sh
 if [ -f "/opt/network_monitor/server_launcher.sh" ]; then
@@ -412,6 +451,16 @@ if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
     add_grafana_datasource "RemoteNetworkMonitor" "mysql" "$REMOTE_DB_IP:$REMOTE_DB_PORT" "$REMOTE_DB_NAME" "$REMOTE_DB_USER" "$REMOTE_DB_PASS"
 fi
 
+# FIX: Import dashboards with timezone-aware queries
+echo "📊 Importing timezone-aware dashboards..."
+
+# Get data source UIDs
+local_ds_uid=$(curl -s -H "Accept: application/json" -H "Content-Type: application/json" http://admin:admin@localhost:3000/api/datasources/name/LocalNetworkMonitor | jq -r '.uid')
+
+if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
+    remote_ds_uid=$(curl -s -H "Accept: application/json" -H "Content-Type: application/json" http://admin:admin@localhost:3000/api/datasources/name/RemoteNetworkMonitor | jq -r '.uid')
+fi
+
 # Path to the Grafana dashboards folder
 grafana_dashboards_folder="./network_monitor/grafana_dashboards"
 
@@ -426,39 +475,48 @@ dashboard_path="$grafana_dashboards_folder/$dashboard_file"
 
 # Check if the dashboard file exists
 if [ -f "$dashboard_path" ]; then
-    echo "📊 Importing dashboard: $dashboard_file"
+    echo "📊 Importing timezone-fixed dashboard: $dashboard_file"
     
     # Create a temporary copy of the dashboard to avoid modifying the original
-    temp_dashboard="/tmp/dashboard_temp.json"
+    temp_dashboard="/tmp/dashboard_timezone_fixed.json"
     cp "$dashboard_path" "$temp_dashboard"
     
-    # Update the dashboard JSON with correct data source UIDs
-    local_ds_uid=$(curl -s -H "Accept: application/json" -H "Content-Type: application/json" http://admin:admin@localhost:3000/api/datasources/name/LocalNetworkMonitor | jq -r '.uid')
+    # FIX: Apply timezone fixes to SQL queries
+    echo "🕐 Applying timezone fixes to dashboard queries..."
     
+    # Replace problematic $__timeFilter(timestamp) with timezone-aware queries
+    sed -i 's/SELECT timestamp AS time, bitrate AS value FROM iperf_results WHERE \$__timeFilter(timestamp) ORDER BY time ASC;/SELECT UNIX_TIMESTAMP(timestamp) * 1000 AS time, bitrate AS value FROM iperf_results WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY time ASC;/g' "$temp_dashboard"
+    
+    sed -i 's/SELECT timestamp AS time, jitter AS value FROM iperf_results WHERE \$__timeFilter(timestamp) ORDER BY time ASC;/SELECT UNIX_TIMESTAMP(timestamp) * 1000 AS time, jitter AS value FROM iperf_results WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY time ASC;/g' "$temp_dashboard"
+    
+    sed -i 's/SELECT timestamp AS time, lost_percentage AS value FROM iperf_results WHERE \$__timeFilter(timestamp) ORDER BY time ASC;/SELECT UNIX_TIMESTAMP(timestamp) * 1000 AS time, lost_percentage AS value FROM iperf_results WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY time ASC;/g' "$temp_dashboard"
+    
+    sed -i 's/SELECT timestamp AS time, latency AS value FROM ping_results WHERE \$__timeFilter(timestamp) ORDER BY time ASC;/SELECT UNIX_TIMESTAMP(timestamp) * 1000 AS time, latency AS value FROM ping_results WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY time ASC;/g' "$temp_dashboard"
+    
+    sed -i 's/SELECT timestamp AS time, interruption_time AS value FROM interruptions WHERE \$__timeFilter(timestamp) ORDER BY time ASC;/SELECT UNIX_TIMESTAMP(timestamp) * 1000 AS time, interruption_time AS value FROM interruptions WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY time ASC;/g' "$temp_dashboard"
+    
+    # Update data source UIDs
     if [ "$local_ds_uid" != "null" ] && [ -n "$local_ds_uid" ]; then
-        # Update LocalNetworkMonitor UID in the dashboard JSON
-        sed -i 's/"uid": "LocalNetworkMonitor"/"uid": "'"$local_ds_uid"'"/' "$temp_dashboard"
+        sed -i "s/\"uid\": \"LocalNetworkMonitor\"/\"uid\": \"$local_ds_uid\"/g" "$temp_dashboard"
         echo "✅ Updated LocalNetworkMonitor UID to: $local_ds_uid"
-    else
-        echo "⚠️  Warning: Could not get LocalNetworkMonitor data source UID"
     fi
     
-    if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
-        remote_ds_uid=$(curl -s -H "Accept: application/json" -H "Content-Type: application/json" http://admin:admin@localhost:3000/api/datasources/name/RemoteNetworkMonitor | jq -r '.uid')
-        if [ "$remote_ds_uid" != "null" ] && [ -n "$remote_ds_uid" ]; then
-            # Update RemoteNetworkMonitor UID in the dashboard JSON
-            sed -i 's/"uid": "RemoteNetworkMonitor"/"uid": "'"$remote_ds_uid"'"/' "$temp_dashboard"
-            echo "✅ Updated RemoteNetworkMonitor UID to: $remote_ds_uid"
-        else
-            echo "⚠️  Warning: Could not get RemoteNetworkMonitor data source UID"
-        fi
+    if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]] && [ "$remote_ds_uid" != "null" ] && [ -n "$remote_ds_uid" ]; then
+        sed -i "s/\"uid\": \"RemoteNetworkMonitor\"/\"uid\": \"$remote_ds_uid\"/g" "$temp_dashboard"
+        echo "✅ Updated RemoteNetworkMonitor UID to: $remote_ds_uid"
     fi
 
-    # Add the dashboard to Grafana using Grafana's HTTP API
+    # Add title suffix to indicate timezone fix
+    sed -i 's/"title": "Network Monitoring Dashboard"/"title": "Network Monitoring Dashboard (Timezone Fixed)"/g' "$temp_dashboard"
+    sed -i 's/"title": "Network Monitoring Dashboard (Bidirectional)"/"title": "Network Monitoring Dashboard (Bidirectional - Timezone Fixed)"/g' "$temp_dashboard"
+
+    # Import the dashboard
     dashboard_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Accept: application/json" -d @"$temp_dashboard" http://admin:admin@localhost:3000/api/dashboards/db 2>/dev/null)
     
     if echo "$dashboard_response" | jq -e '.status == "success"' > /dev/null 2>&1; then
-        echo "✅ Dashboard $dashboard_file imported successfully to Grafana."
+        dashboard_url=$(echo "$dashboard_response" | jq -r '.url')
+        echo "✅ Dashboard imported successfully with timezone fixes!"
+        echo "   URL: http://localhost:3000$dashboard_url"
     else
         echo "⚠️  Warning: Dashboard import may have failed. Response: $dashboard_response"
     fi
@@ -479,11 +537,11 @@ if [ -f "/usr/local/bin/network_monitor" ]; then
 fi
 echo "✅ Database $DB_NAME has been created with user $DB_USER and the necessary tables."
 echo "✅ MariaDB is running and accessible."
-echo "✅ Grafana has been installed and started. You can access it at http://localhost:3000"
-echo "✅ Default Grafana login credentials are admin/admin. You will be prompted to change the password on first login."
-echo "✅ A Grafana data source for the local database has been added."
+echo "✅ Grafana has been installed with timezone configuration."
+echo "✅ Grafana dashboards imported with timezone fixes applied."
+echo "✅ Data sources configured for local database."
 if [[ $ADD_REMOTE == "y" || $ADD_REMOTE == "Y" ]]; then
-    echo "✅ A Grafana data source for the remote database has also been added."
+    echo "✅ Data sources configured for remote database."
 fi
 if [ -f "/usr/local/bin/network_monitor" ]; then
     echo "✅ You can now run the network monitoring by typing 'network_monitor' from anywhere in the terminal."
@@ -527,8 +585,10 @@ echo "🎯 Next Steps:"
 echo "1. Access Grafana at http://localhost:3000 (admin/admin)"
 echo "2. Change the default Grafana password"
 if [ -f "/usr/local/bin/network_monitor" ]; then
-    echo "3. Start network monitoring with: network_monitor"
+    echo "3. Start network monitoring with: network_monitor -i <interface> -t <target_ip>"
+    echo "   Example: network_monitor -i enp60s0 -t 10.0.0.11 -S 10.0.0.12 -p 5050"
 fi
-echo "4. Check the imported dashboard for network monitoring data"
+echo "4. Check the imported dashboard - it includes timezone fixes"
+echo "5. Set dashboard time range to 'Last 24 hours' to see data"
 echo
-echo "🚀 Your network monitoring system is ready!"
+echo "🚀 Your network monitoring system is ready with all fixes applied!"
