@@ -65,35 +65,35 @@ else
     echo "jq is already installed."
 fi
 
-# Ensure MySQL is installed and running
+# Ensure MariaDB is installed and running
 if ! command -v mysql &> /dev/null
 then
-    echo "MySQL is not installed. Installing MySQL..."
+    echo "MariaDB is not installed. Installing MariaDB..."
     apt-get update
-    apt-get install -y mysql-server
-    echo "MySQL installation complete."
+    apt-get install -y mariadb-server
+    echo "MariaDB installation complete."
 fi
 
-# Start and enable MySQL service
-echo "Starting and enabling MySQL service..."
-systemctl start mysql
-systemctl enable mysql
+# Start and enable MariaDB service
+echo "Starting and enabling MariaDB service..."
+systemctl start mariadb
+systemctl enable mariadb
 
-# Configure MySQL for remote access
-mysql_config_path="/etc/mysql/mysql.conf.d/mysqld.cnf"
-if [ -f "$mysql_config_path" ]; then
+# Configure MariaDB for remote access
+mariadb_config_path="/etc/mysql/mariadb.conf.d/50-server.cnf"
+if [ -f "$mariadb_config_path" ]; then
     # Replace bind-address line or add it if not present
-    sed -i '/bind-address/c\bind-address = 0.0.0.0' "$mysql_config_path"
-    if ! grep -q "bind-address" "$mysql_config_path"; then
-        echo "bind-address = 0.0.0.0" >> "$mysql_config_path"
+    sed -i '/bind-address/c\bind-address = 0.0.0.0' "$mariadb_config_path"
+    if ! grep -q "bind-address" "$mariadb_config_path"; then
+        echo "bind-address = 0.0.0.0" >> "$mariadb_config_path"
     fi
-    echo "MySQL configuration updated for remote access."
+    echo "MariaDB configuration updated for remote access."
 else
-    echo "MySQL configuration file not found at $mysql_config_path"
+    echo "MariaDB configuration file not found at $mariadb_config_path"
 fi
 
-# Restart MySQL service to apply changes
-systemctl restart mysql
+# Restart MariaDB service to apply changes
+systemctl restart mariadb
 
 # Create database and user with remote access privileges
 mysql -e "CREATE DATABASE IF NOT EXISTS $DB_NAME;"
@@ -101,7 +101,7 @@ mysql -e "CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';"
 mysql -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';"
 mysql -e "FLUSH PRIVILEGES;"
 
-echo "MySQL user '$DB_USER' created with remote access privileges."
+echo "MariaDB user '$DB_USER' created with remote access privileges."
 
 # Check if iperf3 is installed
 if ! command -v iperf3 &> /dev/null

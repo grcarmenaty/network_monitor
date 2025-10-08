@@ -71,17 +71,17 @@ if [ "$uninstall_all" = true ]; then
         echo "Removed jq"
     fi
 
-    # Remove MySQL server
+    # Remove MariaDB server
     if command -v mysql &> /dev/null; then
-        apt-get remove -y mysql-server
+        apt-get remove -y mariadb-server
         apt-get autoremove -y
         rm -rf /var/lib/mysql /etc/mysql
-        echo "Removed MySQL server"
+        echo "Removed MariaDB server"
     fi
 
     echo "All associated programs have been uninstalled."
 else
-    echo "Associated programs (iperf3, Grafana, jq, MySQL) were not uninstalled."
+    echo "Associated programs (iperf3, Grafana, jq, MariaDB) were not uninstalled."
     echo "Use the -a or --all flag to uninstall these programs as well."
 fi
 

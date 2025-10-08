@@ -33,8 +33,8 @@ sudo bash ./setup.sh
 ```
 
 This script will:
-- Install required dependencies (iperf3, MySQL, Grafana, jq)
-- Set up the MySQL database
+- Install required dependencies (iperf3, MariaDB, Grafana, jq)
+- Set up the MariaDB database
 - Configure Grafana
 - Install the network monitoring scripts
 
@@ -102,7 +102,7 @@ network_monitor -u -a
 
 ## Accessing Results
 
-- The network monitoring results are stored in the MySQL database configured during installation.
+- The network monitoring results are stored in the MariaDB database configured during installation.
 - You can view the results using the Grafana dashboard installed at `http://localhost:3000`.
 
 ## Contributing
